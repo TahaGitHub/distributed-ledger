@@ -1,0 +1,119 @@
+# kind: StorageClass
+# apiVersion: storage.k8s.io/v1
+# metadata:
+#   name: manual
+# provisioner: kubernetes.io/no-provisioner
+# volumeBindingMode: WaitForFirstConsumer
+
+# ---
+
+# apiVersion: v1
+# kind: PersistentVolume
+# metadata:
+#   name: zk1-pv
+# spec:
+#   storageClassName: manual
+#   capacity:
+#     storage: 1Gi
+#   accessModes:
+#   - ReadWriteOnce
+#   hostPath:
+#     path: /mr/zk
+
+# ---
+
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   labels:
+#     io.kompose.service: fluree-vol
+#   name: fluree-vol
+# spec:
+#   storageClassName: manual
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 1Gi
+# status: {}
+
+# ---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: fluree-lb
+  name: fluree-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: fluree-lb
+  template:
+    metadata:
+      name: fluree-pod
+      labels:
+        io.kompose.service: fluree-lb
+    spec:
+      containers:
+        - env:
+            - name: fdb_group_servers
+              value: 9546fd2f0b5b7a79a9aab0ef201eb7753a8b2c546b316b91ea323b25eed3f52f@88.235.154.139:31790
+            - name: fdb_group_this_server
+              value: 9546fd2f0b5b7a79a9aab0ef201eb7753a8b2c546b316b91ea323b25eed3f52f
+            - name: fdb-api-port
+              value: "31090"
+            - name: fdb-join
+              value: "false"
+          image: fluree/ledger
+          name: fluree-cont
+          ports:
+            - name: con-port-8090
+              containerPort: 31090
+            - name: con-port-9790
+              containerPort: 31790
+          # readinessProbe:
+          #   tcpSocket:
+          #     port: 8090
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 25
+          #   failureThreshold: 3
+          resources: {}
+          # volumeMounts:
+          #   - mountPath: /var/lib/fluree
+          #     name: fluree-vol
+      restartPolicy: Always
+      # volumes:
+      #   - name: fluree-vol
+      #     hostPath:
+      #       path: /data
+      #       type: DirectoryOrCreate
+          # persistentVolumeClaim:
+          #   claimName: fluree-vol
+
+---
+
+# service for accessing server from other fluree
+# service for dashboard of fluree where can access it from http://NodeIP:30005
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    io.kompose.service: fluree-lb
+  name: fluree-svc
+spec:
+  type: NodePort
+  ports:
+  - name: svc-port-8090
+    targetPort: 31090
+    protocol: TCP
+    port: 31090
+    nodePort: 31090
+  - name: svc-port-9790
+    targetPort: 31790
+    protocol: TCP
+    port: 31790
+    nodePort: 31790
+  selector:
+    io.kompose.service: fluree-lb

@@ -1,0 +1,36 @@
+{
+  "name": "distributed-ledger",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --watchAll",
+    "start": "node index.js",
+    "dev": "cross-env ENV='development' nodemon index.js"
+  },
+  "author": "Taha Almokahel",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^7.32.0",
+    "eslint-config-standard": "^16.0.3",
+    "eslint-plugin-import": "^2.25.3",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^5.2.0"
+  },
+  "dependencies": {
+    "body-parser": "^1.19.1",
+    "crypto": "^1.0.1",
+    "express": "^4.17.1",
+    "get-port": "^5.1.1",
+    "hyperbee": "^1.7.0",
+    "hyperspace": "^3.19.0",
+    "hyperswarm": "^2.15.3",
+    "ip": "^1.1.5",
+    "lodash": "^4.17.21",
+    "openpgp": "^5.0.1",
+    "openwhisk": "^3.21.5",
+    "public-ip": "^4.0.4",
+    "redux": "^4.1.2",
+    "request": "^2.88.2"
+  }
+}
