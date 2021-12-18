@@ -4,7 +4,7 @@ const fs = require('fs');
 const { exec } = require("child_process");
 const { isEmpty } = require('lodash');
 
-const { BASEDIR, LOCAL_HOSTIP, DIRECTORIES } = require('../../../config');
+const { BASEDIR, LOCAL_HOSTIP, DIRECTORIES, FLUREEHOSTING_PORT } = require('../../../config');
 
 const options = {apihost: `http://${LOCAL_HOSTIP}:3233`, api_key: '23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP'};
 const ow = openwhisk(options);
@@ -51,7 +51,7 @@ exports.OpenwhiskInvoke = function (actionName, data) {
   */
   return new Promise(function(resolve, reject) {
       const blocking = true, result = true;
-      ow.actions.invoke({actionName, blocking, result, params: data}).then(__result => {
+      ow.actions.invoke({actionName, blocking, result, params: { params: data.params, info: { ip: LOCAL_HOSTIP, port: FLUREEHOSTING_PORT }}}).then(__result => {
         console.log(__result)
         resolve(__result)
       }).catch(err => {
