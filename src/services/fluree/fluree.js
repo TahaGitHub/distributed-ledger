@@ -3,9 +3,9 @@ const store = require("../../store/store");
 const { exec } = require("child_process");
 const { isEmpty } = require("lodash");
 
-const { NODE_TYPES, PUBLIC_HOSTIP, FLUREECONNECTING_PORT, FLUREEHOSTING_PORT } = require("../../../config");
+const { NODE_TYPES, PUBLIC_HOSTIP, FLUREECONNECTING_PORT, FLUREEHOSTING_PORT, FLUREE_HISTIP } = require("../../../config");
 
-async function startUpFluree(servers) {
+async function startUpFluree_kubernetes(servers) {
   const port = await FLUREECONNECTING_PORT;
   const _port = await FLUREEHOSTING_PORT;
   /*
@@ -72,6 +72,51 @@ async function startUpFluree(servers) {
   // }
 }
 
+async function startUpFluree_docker(servers) {
+  const port = await FLUREECONNECTING_PORT;
+  const _port = await FLUREEHOSTING_PORT;
+
+  exec(`cp ./yamls/fluree-basic.yaml ./yamls/fluee-docker-compose.yaml`);
+  
+  /*
+  ** First of all will delete fluree containers if exist
+  */
+  exec(`docker rm -f fluree-db`, async (error, stdout, stderr) => {
+    if (error) {
+      console.log(error.message);
+    } else {
+      console.log('Deleted fluree container');
+    }
+
+    await exec(`
+      sed -i "s/serverName1@Ip:Port */${servers}/g" ./yamls/fluee-docker-compose.yaml &&
+      sed -i "s/serverName2 */${store.getState().keys.hashKey}/g" ./yamls/fluee-docker-compose.yaml &&
+      sed -i "s/80901 */${_port}/g" ./yamls/fluee-docker-compose.yaml &&
+
+      sed -i "s/flureeHostIp */${FLUREE_HISTIP}/g" ./yamls/fluee-docker-compose.yaml &&
+
+      sed -i "s/\"9790:9790\" */\"${port}:${port}\"/g" ./yamls/fluee-docker-compose.yaml &&
+      sed -i "s/\"8090:8090\" */\"${_port}:${_port}\"/g" ./yamls/fluee-docker-compose.yaml
+    `);
+      
+    if (
+      process.env.npm_config_type === NODE_TYPES.MASTER ||
+      process.env.npm_config_type === NODE_TYPES.WORKER
+    ) {
+      await exec(`
+        sed -i "s/\"false\" */\"true\"/g" ./yamls/fluee-docker-compose.yaml
+      `);      
+    }
+      
+    exec(`docker-compose -f yamls/fluee-docker-compose.yaml up`, (error, stdout, stderr) => {
+      if (error) {
+        console.log(error); 
+      }
+      console.log(`\n${stdout}`);
+    });
+  });
+}
+
 // this.startUpFluree(null, null, 8090);
 function serverFormat(serverName, serverHost, serevrPort) {
   return `${serverName}@${serverHost}:${serevrPort}`;
@@ -87,7 +132,7 @@ exports.main = function () {
             await PUBLIC_HOSTIP,
             await FLUREECONNECTING_PORT,
           );
-          startUpFluree(servers);
+          startUpFluree_docker(servers);
           clearInterval(timer);
         }
         break;
@@ -98,7 +143,7 @@ exports.main = function () {
         }
 
         var previousNodesCount = store.getState().nodes.nodes.count;
-        setTimeout(() => {
+        setTimeout(async () => {
           if (
             previousNodesCount > 1 &&
             previousNodesCount === store.getState().nodes.nodes.count
@@ -106,7 +151,7 @@ exports.main = function () {
             console.log('Found other node, connecting...');
 
             var servers = "";
-            store.getState().nodes.nodes.nodes.forEach((element) => {
+            await store.getState().nodes.nodes.nodes.forEach((element) => {
               if (servers !== "") {
                 servers += ",";
               }
@@ -117,7 +162,7 @@ exports.main = function () {
               );
             });
             clearInterval(timer);
-            startUpFluree(servers);
+            startUpFluree_docker(servers);
           }
         }, 7000);
         break;

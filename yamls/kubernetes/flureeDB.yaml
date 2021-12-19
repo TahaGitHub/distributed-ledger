@@ -59,9 +59,9 @@ spec:
       containers:
         - env:
             - name: fdb_group_servers
-              value: 9546fd2f0b5b7a79a9aab0ef201eb7753a8b2c546b316b91ea323b25eed3f52f@88.235.154.139:31790
+              value: 4715ad6b6085c4f10b24ac9675fddc84773ddd544bf763425fa8b3c330e38d49@88.235.154.139:31791
             - name: fdb_group_this_server
-              value: 9546fd2f0b5b7a79a9aab0ef201eb7753a8b2c546b316b91ea323b25eed3f52f
+              value: 4715ad6b6085c4f10b24ac9675fddc84773ddd544bf763425fa8b3c330e38d49
             - name: fdb-api-port
               value: "31090"
             - name: fdb-join
@@ -72,7 +72,7 @@ spec:
             - name: con-port-8090
               containerPort: 31090
             - name: con-port-9790
-              containerPort: 31790
+              containerPort: 31791
           # readinessProbe:
           #   tcpSocket:
           #     port: 8090
@@ -111,9 +111,9 @@ spec:
     port: 31090
     nodePort: 31090
   - name: svc-port-9790
-    targetPort: 31790
+    targetPort: 31791
     protocol: TCP
-    port: 31790
-    nodePort: 31790
+    port: 31791
+    nodePort: 31791
   selector:
     io.kompose.service: fluree-lb

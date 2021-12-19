@@ -4,6 +4,7 @@ const BASEDIR = __dirname;
 
 const LOCAL_HOSTIP = require('ip').address(); //'192.168.1.70';
 const PUBLIC_HOSTIP = require('public-ip').v4();
+const FLUREE_HISTIP = "172.16.238.10";
 
 const HOSTING_PORT = 50007;
 const FLUREEHOSTING_PORT = 31090;
@@ -58,7 +59,7 @@ const FLUREE_DB = {
   LEDGER: 'ledger',
   ALL: 'pass-app-network/ledger'
 }
-const FLUREE_URL = `http://${LOCAL_HOSTIP}:${FLUREEHOSTING_PORT}/fdb/${FLUREE_DB.ALL}/`;
+const FLUREE_URL = `http://${FLUREE_HISTIP}:${FLUREEHOSTING_PORT}/fdb/${FLUREE_DB.ALL}/`;
 
 module.exports = {
   BASEDIR,
@@ -66,7 +67,8 @@ module.exports = {
 
   LOCAL_HOSTIP,
   PUBLIC_HOSTIP,
-
+  FLUREE_HISTIP,
+  
   HOSTING_PORT,
   FLUREEHOSTING_PORT,
   FLUREECONNECTING_PORT,

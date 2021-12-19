@@ -4,7 +4,7 @@ const fs = require('fs');
 const { exec } = require("child_process");
 const { isEmpty } = require('lodash');
 
-const { BASEDIR, LOCAL_HOSTIP, DIRECTORIES, FLUREEHOSTING_PORT } = require('../../../config');
+const { BASEDIR, LOCAL_HOSTIP, DIRECTORIES, FLUREEHOSTING_PORT, FLUREE_HISTIP } = require('../../../config');
 
 const options = {apihost: `http://${LOCAL_HOSTIP}:3233`, api_key: '23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP'};
 const ow = openwhisk(options);
@@ -51,7 +51,7 @@ exports.OpenwhiskInvoke = function (actionName, data) {
   */
   return new Promise(function(resolve, reject) {
       const blocking = true, result = true;
-      ow.actions.invoke({actionName, blocking, result, params: { params: data.params, info: { ip: LOCAL_HOSTIP, port: FLUREEHOSTING_PORT }}}).then(__result => {
+      ow.actions.invoke({actionName, blocking, result, params: { params: data.params, info: { ip: FLUREE_HISTIP, port: FLUREEHOSTING_PORT }}}).then(__result => {
         console.log(__result)
         resolve(__result)
       }).catch(err => {
@@ -82,7 +82,7 @@ function OpenwhiskDeleteAllActions () {
   });
 }
 
-exports.main = function () {
+async function startUpOpenwhisk_kubernetes() {
   /*
   ** First of all will delete Openwhisk container if exist and kubernetes pod 
   */
@@ -92,8 +92,8 @@ exports.main = function () {
     } else {
       console.log('Deleted openwhisk-pod pod');
     }
-
-    exec(`docker rm -f openwhisk`, (error, stdout, stderr) => {
+  
+    exec(`sudo docker rm -f openwhisk`, (error, stdout, stderr) => {
       if (error) {
         console.log(error.message);
       } else {
@@ -126,11 +126,55 @@ exports.main = function () {
             .catch(err => {
               console.log('Please wait until container be ready', err.message)
             });
-          }, 10000);
+          }, 5000);
         }
       });
     });
   });
+}
+
+function startUpOpenwhisk_docker() {
+  /*
+  ** First of all will delete Openwhisk container
+  */
+  exec(`docker rm -f openwhisk`, async (error, stdout, stderr) => {
+    if (error) {
+      console.log(error.message)
+    } else {
+      console.log('Deleted openwhisk');
+    }
+
+    await exec(`docker run -p 3233:3233 -v /var/run/docker.sock:/var/run/docker.sock --name openwhisk openwhisk/standalone:nightly`, (error, stdout, stderr) => {
+      if (error) {
+        console.log(error); 
+      }
+      console.log(`\n${stdout}`);
+    });
+
+    const timer = setInterval(() => {
+      ow.actions.list().then(list => {
+        if (isEmpty(list)) {
+          console.log('\nNo action found');
+          clearInterval(timer);
+          OpenwhiskCreateAllActions();
+        } else {
+          console.log('\nAction found list ', list);
+          OpenwhiskDeleteAllActions().then(() => {
+            clearInterval(timer);
+            OpenwhiskCreateAllActions();
+          })
+        }
+      })
+      .catch(err => {
+        console.log('Please wait until container be ready', err.message)
+      });
+    }, 5000);
+  });
+}
+
+
+exports.main = function () {
+  startUpOpenwhisk_docker();
 }
 
 // OpenwhiskDeleteAllActions();
