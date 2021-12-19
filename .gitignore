@@ -1,0 +1,12 @@
+node_modules
+package-lock.json
+
+Dockerfile
+
+.history
+.eslintrc.js
+
+_files
+_test
+_shared-files
+_data

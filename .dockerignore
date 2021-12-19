@@ -1,0 +1,17 @@
+node_modules
+package-lock.json
+
+Dockerfile
+
+.history
+.eslintrc.js
+
+.gitignore
+.dockerignore
+
+_files
+_test
+_shared-files
+_data
+
+README.md
