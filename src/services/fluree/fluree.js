@@ -128,12 +128,15 @@ function startUpFluree_man(servers) {
       break;
     case NODE_TYPES.MASTER:
     case NODE_TYPES.WORKER:
-      exec(
+      var _exec = exec(
         `./fluree-*/fluree_start.sh -Dfdb-join?=true -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
           store.getState().keys.hashKey
-        }
-        -Dfdb-api-port=${FLUREEHOSTING_PORT}`
+        } -Dfdb-api-port=${FLUREEHOSTING_PORT}`
       );
+
+      _exec.stdout.on('data', function(data) {
+        console.log(data); 
+      })
       break;
     default:
       break;
