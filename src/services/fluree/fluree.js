@@ -121,7 +121,7 @@ function startUpFluree_man(servers) {
   switch (process.env.npm_config_type) {
     case NODE_TYPES.MAIN_MASTER:
       exec(
-        `./fluree*/fluree_start.sh -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
+        `./fluree-*/fluree_start.sh -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
           store.getState().keys.hashKey
         } -Dfdb-api-port=${FLUREEHOSTING_PORT}`
       );
@@ -129,7 +129,7 @@ function startUpFluree_man(servers) {
     case NODE_TYPES.MASTER:
     case NODE_TYPES.WORKER:
       exec(
-        `./fluree*/fluree_start.sh -Dfdb-join?=true -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
+        `./fluree-*/fluree_start.sh -Dfdb-join?=true -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
           store.getState().keys.hashKey
         }
         -Dfdb-api-port=${FLUREEHOSTING_PORT}`

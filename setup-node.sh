@@ -24,11 +24,11 @@ apt-get install --yes nodejs
 
 wget https://fluree-releases-public.s3.amazonaws.com/fluree-0.15-latest.zip
 unzip fluree*.zip -d fluree
-chmod -R 777 fluree distributed-ledger
+chmod -R 777 fluree
 mv fluree/fluree* .
-rm fluree
+rm -r fluree/
 
 docker pull openwhisk/standalone:nightly
 
 npm install
-npm start
+sudo npm start
