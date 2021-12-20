@@ -124,7 +124,7 @@ exports.main = function (app) {
         if (body?.status === 200) {
           res.json({
             status: body.status,
-            userId: body.tempids?.users[0],
+            userId: body.tempids?.users,
           });
         } else {
           res.json({

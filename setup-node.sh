@@ -16,13 +16,14 @@ apt-get install --yes docker-ce docker-ce-cli containerd.io
 
 curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
 apt-get update
-apt-get install --yes nodejs
+apt-get install --yes nodejs openjdk-8-jdk
 
 # apt install --yes software-properties-common
 # add-apt-repository --yes --update ppa:ansible/ansible
 # apt-get install --yes ansible wget unzip
 
-wget https://fluree-releases-public.s3.amazonaws.com/fluree-0.15-latest.zip
+[ ! -e fluree-*.zip ] && wget https://fluree-releases-public.s3.amazonaws.com/fluree-0.15-latest.zip
+
 unzip fluree*.zip -d fluree
 chmod -R 777 fluree
 mv fluree/fluree* .
