@@ -23,7 +23,7 @@ exports.listener = function () {
       process.env.npm_config_type === NODE_TYPES.MAIN_MASTER ||
       process.env.npm_config_type === NODE_TYPES.MASTER
     ) {
-      // require("./masterApis").main(app);
+      require("./masterApis").main(app);
     } else {
       process.env.npm_config_type = NODE_TYPES.WORKER;
     }

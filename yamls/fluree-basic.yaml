@@ -9,6 +9,7 @@ services:
     environment: 
         fdb_group_servers: serverName1@Ip:Port
         fdb_group_this_server: serverName2
+        fdb-group-catch-up-rounds: 100
         fdb-api-port: 80901
         fdb-join: "false"
     ports:

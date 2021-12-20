@@ -3,7 +3,7 @@ const store = require("../../store/store");
 const { exec } = require("child_process");
 const { isEmpty } = require("lodash");
 
-const { NODE_TYPES, PUBLIC_HOSTIP, FLUREECONNECTING_PORT, FLUREEHOSTING_PORT, FLUREE_HISTIP } = require("../../../config");
+const { NODE_TYPES, PUBLIC_HOSTIP, FLUREECONNECTING_PORT, FLUREEHOSTING_PORT, LOCAL_HOSTIP } = require("../../../config");
 
 async function startUpFluree_kubernetes(servers) {
   const port = await FLUREECONNECTING_PORT;
@@ -93,7 +93,7 @@ async function startUpFluree_docker(servers) {
       sed -i "s/serverName2 */${store.getState().keys.hashKey}/g" ./yamls/fluee-docker-compose.yaml &&
       sed -i "s/80901 */${_port}/g" ./yamls/fluee-docker-compose.yaml &&
 
-      sed -i "s/flureeHostIp */${FLUREE_HISTIP}/g" ./yamls/fluee-docker-compose.yaml &&
+      sed -i "s/flureeHostIp */${LOCAL_HOSTIP}/g" ./yamls/fluee-docker-compose.yaml &&
 
       sed -i "s/\"9790:9790\" */\"${port}:${port}\"/g" ./yamls/fluee-docker-compose.yaml &&
       sed -i "s/\"8090:8090\" */\"${_port}:${_port}\"/g" ./yamls/fluee-docker-compose.yaml
@@ -117,6 +117,29 @@ async function startUpFluree_docker(servers) {
   });
 }
 
+function startUpFluree_man(servers) {
+  switch (process.env.npm_config_type) {
+    case NODE_TYPES.MAIN_MASTER:
+      exec(
+        `./src/utils/fluree/fluree/fluree_start.sh -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
+          store.getState().keys.hashKey
+        } -Dfdb-api-port=${FLUREEHOSTING_PORT}`
+      );
+      break;
+    case NODE_TYPES.MASTER:
+    case NODE_TYPES.WORKER:
+      exec(
+        `./src/utils/fluree/fluree/fluree_start.sh -Dfdb-join?=true -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
+          store.getState().keys.hashKey
+        }
+        -Dfdb-api-port=${FLUREEHOSTING_PORT}`
+      );
+      break;
+    default:
+      break;
+  }
+}
+
 // this.startUpFluree(null, null, 8090);
 function serverFormat(serverName, serverHost, serevrPort) {
   return `${serverName}@${serverHost}:${serevrPort}`;
@@ -132,7 +155,7 @@ exports.main = function () {
             await PUBLIC_HOSTIP,
             await FLUREECONNECTING_PORT,
           );
-          startUpFluree_docker(servers);
+          startUpFluree_man(servers);
           clearInterval(timer);
         }
         break;
@@ -162,7 +185,7 @@ exports.main = function () {
               );
             });
             clearInterval(timer);
-            startUpFluree_docker(servers);
+            startUpFluree_man(servers);
           }
         }, 7000);
         break;
