@@ -22,9 +22,11 @@ apt-get install --yes nodejs
 # add-apt-repository --yes --update ppa:ansible/ansible
 # apt-get install --yes ansible wget unzip
 
-wget https://fluree-releases-public.s3.amazonaws.com/fluree-[MAJOR VERSION].[MINOR VERSION]-latest.zip
+wget https://fluree-releases-public.s3.amazonaws.com/fluree-0.15-latest.zip
 unzip fluree*.zip -d fluree
-mv fluree/fluree* $HOME 
+chmod -R 777 fluree distributed-ledger
+mv fluree/fluree* .
+rm fluree
 
 docker pull openwhisk/standalone:nightly
 
