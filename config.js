@@ -2,7 +2,7 @@ const { SetPort } = require('./src/helper/net-controller');
 
 const BASEDIR = __dirname;
 
-const LOCAL_HOSTIP = require('ip').address(); //'192.168.1.70';
+const LOCAL_HOSTIP = process.env.HOST || require('ip').address(); //'192.168.1.70';
 const PUBLIC_HOSTIP = require('public-ip').v4();
 
 const HOSTING_PORT = 50007;
@@ -53,6 +53,14 @@ const NODE_TYPES = {
   WORKER: 'worker',
 };
 
+var NODE_TYPE = process.env.TYPE ?
+    process.env.TYPE === NODE_TYPES.MAIN_MASTER || process.env.TYPE === NODE_TYPES.MASTER ? 
+      process.env.TYPE :
+      'worker' :
+    process.env.npm_config_type === NODE_TYPES.MAIN_MASTER || process.env.npm_config_type === NODE_TYPES.MASTER ?
+      process.env.npm_config_type :
+      'worker';
+
 const FLUREE_DB = {
   NETWORK: 'pass-app-network',
   LEDGER: 'ledger',
@@ -79,6 +87,8 @@ module.exports = {
   CHANNEL,
   MES_ACTION,
 
+  NODE_TYPE,
+  
   FLUREE_DB,
   FLUREE_URL,
 };

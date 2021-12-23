@@ -4,7 +4,7 @@ const fs = require('fs');
 const { exec } = require("child_process");
 const { isEmpty } = require('lodash');
 
-const { BASEDIR, LOCAL_HOSTIP, DIRECTORIES, FLUREEHOSTING_PORT } = require('../../../config');
+const { BASEDIR, DIRECTORIES, FLUREEHOSTING_PORT, LOCAL_HOSTIP } = require('../../../config');
 
 const options = {apihost: `http://${LOCAL_HOSTIP}:3233`, api_key: '23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP'};
 const ow = openwhisk(options);
@@ -144,7 +144,11 @@ function startUpOpenwhisk_docker() {
       console.log('Deleted openwhisk');
     }
 
-    await exec(`docker run -p ${LOCAL_HOSTIP}:3233:3233 -v /var/run/docker.sock:/var/run/docker.sock --name openwhisk openwhisk/standalone:nightly`, (error, stdout, stderr) => {
+    // --net dis-network \
+    await exec(`docker run \
+      -p 3233:3233 \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      --name openwhisk openwhisk/standalone:nightly`, (error, stdout, stderr) => {
       if (error) {
         console.log(error); 
       }

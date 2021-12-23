@@ -4,8 +4,7 @@ services:
     image: fluree/ledger
     container_name: fluree-db
     networks:
-      app_net:
-        ipv4_address: flureeHostIp
+      - default
     environment: 
         fdb_group_servers: serverName1@Ip:Port
         fdb_group_this_server: serverName2
@@ -15,11 +14,3 @@ services:
     ports:
       - "8090:8090"
       - "9790:9790"
-networks:
-  app_net:
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.16.238.0/16
-          gateway: 172.16.238.1

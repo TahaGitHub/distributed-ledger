@@ -1,10 +1,13 @@
 const express = require("express");
+const ip = require('ip');
 const bodyParser = require("body-parser");
 
-const { HOSTING_PORT, LOCAL_HOSTIP, NODE_TYPES } = require("../../../config");
+const { HOSTING_PORT, LOCAL_HOSTIP, NODE_TYPES, NODE_TYPE } = require("../../../config");
 
-exports.listener = function () {
-  console.log(`\nNode's type: ${process.env.npm_config_type || NODE_TYPES.WORKER}`)
+exports.listener = async function () {
+  const listing_port = await ip.address();
+
+  console.log(`\nNode's type: ${NODE_TYPE}`)
   
   const app = express();
   app.use
@@ -16,16 +19,14 @@ exports.listener = function () {
   }
 
   const PORT = port || HOSTING_PORT;
-  app.listen(PORT, LOCAL_HOSTIP, () => {
-    console.log(`listening:\n   HOST: ${LOCAL_HOSTIP}\n   PORT: ${PORT}`);
-
+  app.listen(PORT, listing_port, () => {
+    console.log(`listening:\n   HOST: ${LOCAL_HOSTIP}\n   DOCKER:${listing_port}\n   PORT: ${PORT}`);
+    
     if (
-      process.env.npm_config_type === NODE_TYPES.MAIN_MASTER ||
-      process.env.npm_config_type === NODE_TYPES.MASTER
+      NODE_TYPE === NODE_TYPES.MAIN_MASTER ||
+      NODE_TYPE === NODE_TYPES.MASTER
     ) {
       require("./masterApis").main(app);
-    } else {
-      process.env.npm_config_type = NODE_TYPES.WORKER;
     }
         
     require("./workerApis").main(app);

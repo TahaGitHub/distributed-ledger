@@ -3,7 +3,7 @@ const store = require("../../store/store");
 const { exec } = require("child_process");
 const { isEmpty } = require("lodash");
 
-const { NODE_TYPES, PUBLIC_HOSTIP, FLUREECONNECTING_PORT, FLUREEHOSTING_PORT, LOCAL_HOSTIP } = require("../../../config");
+const { NODE_TYPES, PUBLIC_HOSTIP, FLUREECONNECTING_PORT, FLUREEHOSTING_PORT, NODE_TYPE } = require("../../../config");
 
 async function startUpFluree_kubernetes(servers) {
   const port = await FLUREECONNECTING_PORT;
@@ -37,8 +37,8 @@ async function startUpFluree_kubernetes(servers) {
     `);
   
     if (
-      process.env.npm_config_type === NODE_TYPES.MASTER ||
-      process.env.npm_config_type === NODE_TYPES.WORKER
+      NODE_TYPE === NODE_TYPES.MASTER ||
+      NODE_TYPE === NODE_TYPES.WORKER
     ) {
       await exec(`gawk -i inplace '/^[ \t]*- *name: *fdb-join[ \t]*$/{p=NR} p && NR==p+1{sub(/value:.+/, "value: \\"true\\"")} 1' ./yamls/flureeDB.yaml`);      
     }
@@ -51,7 +51,7 @@ async function startUpFluree_kubernetes(servers) {
     });
   });
 
-  // switch (process.env.npm_config_type) {
+  // switch (NODE_TYPE) {
   //   case NODE_TYPES.MAIN_MASTER:
   //     // exec(`gawk -i inplace '/^[ \t]*- *name: *fdb-api-port[ \t]*$/{p=NR}
   //     //   p && NR==p+1{sub(/value:.+/, "value: ${fluServerPort ? fluServerPort : "8090"}")} 1' ./yamls/flureeDB.yaml`);
@@ -72,11 +72,11 @@ async function startUpFluree_kubernetes(servers) {
   // }
 }
 
-async function startUpFluree_docker(servers) {
+async function startUpFluree_docker_compose(servers) {
   const port = await FLUREECONNECTING_PORT;
   const _port = await FLUREEHOSTING_PORT;
 
-  exec(`cp ./yamls/fluree-basic.yaml ./yamls/fluee-docker-compose.yaml`);
+  exec(`cp ./yamls/fluree-basic.yaml ./yamls/fluree-docker-compose.yaml`);
   
   /*
   ** First of all will delete fluree containers if exist
@@ -89,26 +89,56 @@ async function startUpFluree_docker(servers) {
     }
 
     await exec(`
-      sed -i "s/serverName1@Ip:Port */${servers}/g" ./yamls/fluee-docker-compose.yaml &&
-      sed -i "s/serverName2 */${store.getState().keys.hashKey}/g" ./yamls/fluee-docker-compose.yaml &&
-      sed -i "s/80901 */${_port}/g" ./yamls/fluee-docker-compose.yaml &&
+      sed -i "s/serverName1@Ip:Port */${servers}/g" ./yamls/fluree-docker-compose.yaml &&
+      sed -i "s/serverName2 */${store.getState().keys.hashKey}/g" ./yamls/fluree-docker-compose.yaml &&
+      sed -i "s/80901 */${_port}/g" ./yamls/fluree-docker-compose.yaml &&
 
-      sed -i "s/flureeHostIp */${LOCAL_HOSTIP}/g" ./yamls/fluee-docker-compose.yaml &&
-
-      sed -i "s/\"9790:9790\" */\"${port}:${port}\"/g" ./yamls/fluee-docker-compose.yaml &&
-      sed -i "s/\"8090:8090\" */\"${_port}:${_port}\"/g" ./yamls/fluee-docker-compose.yaml
+      sed -i "s/\"9790:9790\" */\"${port}:${port}\"/g" ./yamls/fluree-docker-compose.yaml &&
+      sed -i "s/\"8090:8090\" */\"${_port}:${_port}\"/g" ./yamls/fluree-docker-compose.yaml
     `);
       
     if (
-      process.env.npm_config_type === NODE_TYPES.MASTER ||
-      process.env.npm_config_type === NODE_TYPES.WORKER
+      NODE_TYPE === NODE_TYPES.MASTER ||
+      NODE_TYPE === NODE_TYPES.WORKER
     ) {
       await exec(`
-        sed -i "s/\"false\" */\"true\"/g" ./yamls/fluee-docker-compose.yaml
+        sed -i "s/\"false\" */\"true\"/g" ./yamls/fluree-docker-compose.yaml
       `);      
     }
       
-    exec(`docker-compose -f yamls/fluee-docker-compose.yaml up`, (error, stdout, stderr) => {
+    exec(`docker-compose -f yamls/fluree-docker-compose.yaml up`, (error, stdout, stderr) => {
+      if (error) {
+        console.log(error); 
+      }
+      console.log(`\n${stdout}`);
+    });
+  });
+}
+
+async function startUpFluree_docker(servers) {
+  const port = await FLUREECONNECTING_PORT;
+  const _port = await FLUREEHOSTING_PORT;
+  
+  /*
+  ** First of all will delete fluree containers if exist
+  */
+  exec(`docker rm -f fluree-db`, async (error, stdout, stderr) => {
+    if (error) {
+      console.log(error.message);
+    } else {
+      console.log('Deleted fluree container');
+    }
+
+    // --net dis-network \
+    await exec(`docker run \
+      --restart unless-stopped \
+      --env fdb_group_servers=${servers} \
+      --env fdb_group_this_server=${store.getState().keys.hashKey} \
+      --env fdb-api-port=${_port} \
+      --env fdb-join=${(NODE_TYPE === NODE_TYPES.MASTER || NODE_TYPE === NODE_TYPES.WORKER) || false} \
+      -p ${port}:${port} \
+      -p ${_port}:${_port} \
+      --name fluree-db fluree/ledger`, (error, stdout, stderr) => {
       if (error) {
         console.log(error); 
       }
@@ -118,23 +148,27 @@ async function startUpFluree_docker(servers) {
 }
 
 function startUpFluree_man(servers) {
-  switch (process.env.npm_config_type) {
+  switch (NODE_TYPE) {
     case NODE_TYPES.MAIN_MASTER:
-      exec(
+      var _exec1 = exec(
         `./fluree-*/fluree_start.sh -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
           store.getState().keys.hashKey
         } -Dfdb-api-port=${FLUREEHOSTING_PORT}`
       );
+
+      _exec1.stdout.on('data', function(data) {
+        console.log(data); 
+      })
       break;
     case NODE_TYPES.MASTER:
     case NODE_TYPES.WORKER:
-      var _exec = exec(
+      var _exec2 = exec(
         `./fluree-*/fluree_start.sh -Dfdb-join?=true -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
           store.getState().keys.hashKey
         } -Dfdb-api-port=${FLUREEHOSTING_PORT}`
       );
 
-      _exec.stdout.on('data', function(data) {
+      _exec2.stdout.on('data', function(data) {
         console.log(data); 
       })
       break;
@@ -150,7 +184,7 @@ function serverFormat(serverName, serverHost, serevrPort) {
 
 exports.main = function () {
   const timer = setInterval(async () => {
-    switch (process.env.npm_config_type) {
+    switch (NODE_TYPE) {
       case NODE_TYPES.MAIN_MASTER:
         if (!isEmpty(store.getState().keys.hashKey)) {
           const servers = serverFormat(
@@ -158,7 +192,7 @@ exports.main = function () {
             await PUBLIC_HOSTIP,
             await FLUREECONNECTING_PORT,
           );
-          startUpFluree_man(servers);
+          startUpFluree_docker(servers);
           clearInterval(timer);
         }
         break;
@@ -188,7 +222,7 @@ exports.main = function () {
               );
             });
             clearInterval(timer);
-            startUpFluree_man(servers);
+            startUpFluree_docker(servers);
           }
         }, 7000);
         break;
