@@ -7,11 +7,17 @@ const Hyperswarm = require("hyperswarm");
 const Hyperbee = require("hyperbee");
 const { Client, Server } = require("hyperspace");
 
-const { CHANNEL, DISCOVERING_PORT, PUBLIC_HOSTIP, LOCAL_HOSTIP, DIRECTORIES, FLUREECONNECTING_PORT } = require("../../../config");
+const { CHANNEL, DISCOVERING_PORT, PUBLIC_HOSTIP, LOCAL_HOSTIP, DIRECTORIES } = require("../../../config");
 const Node = require("../../units/node");
 
 var _ = require("lodash");
+const { logWithColor } = require("../../helper/logs");
 
+/*
+** Set controller times like:
+** - Re-join time on swarm
+** - Message sending time after peers finding each other
+*/
 async function timersIpsPortEquipper() {
   const joiningTimer = Math.floor(
     360000 + Math.random() * (480000 + 1 - 360000) // 10-6 min
@@ -29,6 +35,9 @@ async function timersIpsPortEquipper() {
   return { joiningTimer, sendingTimer };
 }
 
+/*
+** Configure "Server" and "Client" for hayperswarm  
+*/
 async function setUpHyperspace() {
   let client;
   let server;
@@ -73,14 +82,17 @@ async function setUpHyperspace() {
   };
 }
 
+/*
+** Configure hapercore and hyperbee
+** add current node data to nodes.json file
+*/
 exports.hyperspace = async function () {
   let peers = {};
   let connSeq = 0;
 
   let replicated_bees = {};
 
-  const { joiningTimer, sendingTimer } =
-    await timersIpsPortEquipper();
+  const { joiningTimer, sendingTimer } = await timersIpsPortEquipper();
   const { client, current_bee, coreKey, cleanup } = await setUpHyperspace();
   
   async function main() {
@@ -95,10 +107,13 @@ exports.hyperspace = async function () {
     await client.replicate(current_bee.feed);
     // await new Promise((r) => setTimeout(r, 3e3)); // just a few seconds
     await client.network.configure(current_bee.feed, {
-      announce: true,
-      lookup: true,
+      lookup: true, // find & connect to peers
+      announce: true, // optional- announce self as a connection target
     });
 
+    /*
+    ** Append action when new data adding to hypercore file
+    */
     current_bee.feed.on("append", async () => {
       const index = current_bee.feed.length - 1;
       try {
@@ -119,18 +134,16 @@ exports.hyperspace = async function () {
         // console.log(key, " ", value);
         console.log(`Append to current core: ${key}`);
         store.dispatch(nodesAction.insertUpdateNode(value.part));
-
       } catch (error) {
         console.log(error)
       }
     });
 
-    var _currentNode = store
-      .getState()
-      .nodes.nodes.nodes.find(
-        (item) => item.nodeHashKey === store.getState().keys.hashKey
-      );
+    var _currentNode = store.getState().nodes.nodes.nodes.find(
+      (item) => item.nodeHashKey === store.getState().keys.hashKey
+    );
 
+    // Configure current node data
     var currentNode = new Node({
       created_time: _currentNode ? _currentNode.created_time : new Date(),
       updated_time: _currentNode ? new Date() : null,
@@ -138,18 +151,20 @@ exports.hyperspace = async function () {
       coreKey: coreKey,
       publicKey: store.getState().keys.publicKey,
       remoteSocket: {
-        port: await DISCOVERING_PORT,
-        port_db: await FLUREECONNECTING_PORT,
-        local: LOCAL_HOSTIP,
-        remote: await PUBLIC_HOSTIP,
+        disPort: await DISCOVERING_PORT,
+        flureePort: _currentNode?.remoteSocket?.flureePort ? _currentNode?.remoteSocket?.flureePort : null,
+        localIP: LOCAL_HOSTIP,
+        remoteIP: await PUBLIC_HOSTIP,
       },
     });
 
+    // Add current node data to hypercore file
     await current_bee.put(coreKey, {
       type: "node",
       part: currentNode,
     });
 
+    // Check nodes file is exist and has data adding to hypercore file
     var bar = new Promise((resolve, reject) => {
       if (store.getState().nodes.nodes.count === 0) {
         resolve(-1);
@@ -172,7 +187,7 @@ exports.hyperspace = async function () {
     });
 
     bar.then(async (i) => {
-      await new Promise((r) => setTimeout(r, 1e3)); // just a few seconds
+      await new Promise((r) => setTimeout(r, 1e3)); // wait just a few seconds
       console.log(
         `\nSyncing nodes file with hypercore file:\n   ${
           i === -1
@@ -180,53 +195,34 @@ exports.hyperspace = async function () {
             : `There ${i} node synced with hypercore file`
         }`
       );
+
+      // Start discovering peers
       hyperSwarm();
     });
 
-    // var q = 1;
-    // setInterval(async () => {
-    //   node.nodeHashKey = "test " + q;
-    //   node.coreKey = "test " + q;
-    //   await current_bee.put("test " + q, {
-    //     type: "node",
-    //     part: node,
-    //   });
-    //   q++;
-    // }, 2000);
-
-    // await new Promise((r) => setTimeout(r, 3e3)); // just a few seconds
+    // await new Promise((r) => setTimeout(r, 3e3)); // wait just a few seconds
     // await cleanup();
   }
 
   async function hyperSwarm() {
-    // const coreKey = current_bee.feed.key.toString("hex"); // crypto.randomBytes(32);
-    // console.log(`Node coreKey id: ${coreKey}`);
-
+    // Configure hyperswam for discovery DHT protocol & topic channel
     const swarm = Hyperswarm();
     const topic = crypto.createHash("sha256").update(CHANNEL.NODE).digest();
 
     // Choose a random unused port for listening TCP peer connections
     swarm.listen(await DISCOVERING_PORT);
 
-    console.log(
-      // "\x1b[30m", // black
-      // "\x1b[31m", // red
-      "\x1b[32m", // green
-      // "\x1b[33m", // yellow
-      // "\x1b[34m", // blue
-      // "\x1b[35m", // magenta
-      // "\x1b[36m", // cyan
-      // "\x1b[37m", // white
+    logWithColor('green',
       `\nCore id: ${coreKey}\nTopic id: ${topic.toString(
-        "hex"
-      )} >> Port: ${await DISCOVERING_PORT}\n`,
-      `\x1b[37m` // restun color to white
-    );
+          "hex"
+      )} >> Port: ${await DISCOVERING_PORT}\n`);
 
+    // Join current node in DHT protocol by topic key
     await swarm.join(topic, {
       lookup: true, // find & connect to peers
       announce: true, // optional- announce self as a connection target
     });
+
     const _timer = setInterval(async () => {
       // if (connSeq !== 0) {
       //   console.log("Stop Re-joining the topic");
@@ -327,6 +323,9 @@ exports.hyperspace = async function () {
     });
   }
 
+  /*
+  ** Replicate and sync new core with current node
+  */
   async function replicateCore(message) {
     if (replicated_bees[message.key]) {
       console.log("trying to duple replicate ", replicated_bees);
@@ -363,7 +362,6 @@ exports.hyperspace = async function () {
     }
 
     _bee.feed.on("download", async (index, data) => {
-      // async () => {
       // console.log(index);
       // console.log(data);
       try {
@@ -419,37 +417,46 @@ exports.hyperspace = async function () {
     peers[peerId].socket.write(JSON.stringify(data));
   };
 
-  const SendMessageToAllPeers = (data) => {
-    console.log(`Sending message to all peers`);
-    for (let id in peers) {
-      console.log(`Peer Id: ${id}`);
-      peers[id].socket.write(JSON.stringify(data));
-    }
-  };
+  // const SendMessageToAllPeers = (data) => {
+  //   console.log(`Sending message to all peers`);
+  //   for (let id in peers) {
+  //     console.log(`Peer Id: ${id}`);
+  //     peers[id].socket.write(JSON.stringify(data));
+  //   }
+  // };
 
-  exports.AddNewNodePostman = async function (data) {
-    var _currentNode = store
-      .getState()
-      .nodes.nodes.nodes.find(
-        (item) => item.nodeHashKey === data.part.nodeHashKey
-      );
+  // exports.AddNewNodePostman = async function (data) {
+  //   var _currentNode = store
+  //     .getState()
+  //     .nodes.nodes.nodes.find(
+  //       (item) => item.nodeHashKey === data.part.nodeHashKey
+  //     );
 
-    console.log(
-      `${_currentNode ? "UpdateNodePostman" : "AddNewNodePostman"} >>>`
-    );
-    const node = new Node({
-      created_time: _currentNode ? _currentNode.created_time : new Date(),
-      updated_time: _currentNode ? new Date() : null,
-      nodeHashKey: data.part.nodeHashKey,
-      coreKey: data.part.coreKey,
-      publicKey: data.part.publicKey,
-      remoteSocket: data.part.remoteSocket,
-    });
-    console.log(node);
+  //   console.log(
+  //     `${_currentNode ? "UpdateNodePostman" : "AddNewNodePostman"} >>>`
+  //   );
+  //   const node = new Node({
+  //     created_time: _currentNode ? _currentNode.created_time : new Date(),
+  //     updated_time: _currentNode ? new Date() : null,
+  //     nodeHashKey: data.part.nodeHashKey,
+  //     coreKey: data.part.coreKey,
+  //     publicKey: data.part.publicKey,
+  //     remoteSocket: data.part.remoteSocket,
+  //   });
+  //   console.log(node);
 
-    await current_bee.put(data.part.coreKey, { type: "node", part: node });
-  };
+  //   await current_bee.put(data.part.coreKey, { type: "node", part: node });
+  // };
 
   // exports.SendMessageToPeerCore = async function (data) {};
+
+  exports.UpdateCurrentNode = async function (newNodeData) {
+    // Update current node data to hypercore file
+    await current_bee.put(coreKey, {
+      type: "node",
+      part: newNodeData,
+    });
+  }
+
   main();
 }

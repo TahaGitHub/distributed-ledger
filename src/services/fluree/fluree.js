@@ -4,10 +4,11 @@ const { exec } = require("child_process");
 const { isEmpty } = require("lodash");
 
 const { NODE_TYPES, PUBLIC_HOSTIP, FLUREECONNECTING_PORT, FLUREEHOSTING_PORT, NODE_TYPE } = require("../../../config");
+const hyperspace = require("../../utils/hyperspace/hyperspace");
 
-async function startUpFluree_kubernetes(servers) {
-  const port = await FLUREECONNECTING_PORT;
-  const _port = await FLUREEHOSTING_PORT;
+function startUpFluree_kubernetes(servers) {
+  const port = FLUREECONNECTING_PORT;
+  const _port = FLUREEHOSTING_PORT;
   /*
   ** First of all will delete kubernetes
   */
@@ -18,7 +19,7 @@ async function startUpFluree_kubernetes(servers) {
       console.log('Deleted fluree deployment and service');
     }
     
-    await exec(`
+    exec(`
       gawk -i inplace '/^[ \t]*- *name: *fdb_group_servers[ \t]*$/{p=NR} p && NR==p+1{sub(/value:.+/, "value: ${servers}")} 1' ./yamls/flureeDB.yaml &&
       gawk -i inplace '/^[ \t]*- *name: *fdb_group_this_server[ \t]*$/{p=NR} p && NR==p+1{sub(/value:.+/, "value: ${store.getState().keys.hashKey}")} 1' ./yamls/flureeDB.yaml &&
 
@@ -40,7 +41,7 @@ async function startUpFluree_kubernetes(servers) {
       NODE_TYPE === NODE_TYPES.MASTER ||
       NODE_TYPE === NODE_TYPES.WORKER
     ) {
-      await exec(`gawk -i inplace '/^[ \t]*- *name: *fdb-join[ \t]*$/{p=NR} p && NR==p+1{sub(/value:.+/, "value: \\"true\\"")} 1' ./yamls/flureeDB.yaml`);      
+      exec(`gawk -i inplace '/^[ \t]*- *name: *fdb-join[ \t]*$/{p=NR} p && NR==p+1{sub(/value:.+/, "value: \\"true\\"")} 1' ./yamls/flureeDB.yaml`);      
     }
       
     exec(`kubectl create -f ./yamls/flureeDB.yaml`, (error, stdout, stderr) => {
@@ -72,9 +73,9 @@ async function startUpFluree_kubernetes(servers) {
   // }
 }
 
-async function startUpFluree_docker_compose(servers) {
-  const port = await FLUREECONNECTING_PORT;
-  const _port = await FLUREEHOSTING_PORT;
+function startUpFluree_docker_compose(servers) {
+  const port = FLUREECONNECTING_PORT;
+  const _port = FLUREEHOSTING_PORT;
 
   exec(`cp ./yamls/fluree-basic.yaml ./yamls/fluree-docker-compose.yaml`);
   
@@ -88,7 +89,7 @@ async function startUpFluree_docker_compose(servers) {
       console.log('Deleted fluree container');
     }
 
-    await exec(`
+    exec(`
       sed -i "s/serverName1@Ip:Port */${servers}/g" ./yamls/fluree-docker-compose.yaml &&
       sed -i "s/serverName2 */${store.getState().keys.hashKey}/g" ./yamls/fluree-docker-compose.yaml &&
       sed -i "s/80901 */${_port}/g" ./yamls/fluree-docker-compose.yaml &&
@@ -101,7 +102,7 @@ async function startUpFluree_docker_compose(servers) {
       NODE_TYPE === NODE_TYPES.MASTER ||
       NODE_TYPE === NODE_TYPES.WORKER
     ) {
-      await exec(`
+      exec(`
         sed -i "s/\"false\" */\"true\"/g" ./yamls/fluree-docker-compose.yaml
       `);      
     }
@@ -115,9 +116,9 @@ async function startUpFluree_docker_compose(servers) {
   });
 }
 
-async function startUpFluree_docker(servers) {
-  const port = await FLUREECONNECTING_PORT;
-  const _port = await FLUREEHOSTING_PORT;
+function startUpFluree_docker(servers) {
+  const port = FLUREECONNECTING_PORT;
+  const _port = FLUREEHOSTING_PORT;
   
   /*
   ** First of all will delete fluree containers if exist
@@ -130,7 +131,7 @@ async function startUpFluree_docker(servers) {
     }
 
     // --net dis-network \
-    await exec(`docker run \
+    exec(`docker run \
       --restart unless-stopped \
       --env fdb_group_servers=${servers} \
       --env fdb_group_this_server=${store.getState().keys.hashKey} \
@@ -140,7 +141,7 @@ async function startUpFluree_docker(servers) {
       -p ${_port}:${_port} \
       --name fluree-db fluree/ledger`, (error, stdout, stderr) => {
       if (error) {
-        console.log(error); 
+        console.log(error);
       }
       console.log(`\n${stdout}`);
     });
@@ -151,7 +152,7 @@ function startUpFluree_man(servers) {
   switch (NODE_TYPE) {
     case NODE_TYPES.MAIN_MASTER:
       var _exec1 = exec(
-        `./fluree-*/fluree_start.sh -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
+        `$HOME/node/fluree/fluree_start.sh -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
           store.getState().keys.hashKey
         } -Dfdb-api-port=${FLUREEHOSTING_PORT}`
       );
@@ -163,7 +164,7 @@ function startUpFluree_man(servers) {
     case NODE_TYPES.MASTER:
     case NODE_TYPES.WORKER:
       var _exec2 = exec(
-        `./fluree-*/fluree_start.sh -Dfdb-join?=true -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
+        `$HOME/node/fluree/fluree_start.sh -Dfdb-join?=true -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
           store.getState().keys.hashKey
         } -Dfdb-api-port=${FLUREEHOSTING_PORT}`
       );
@@ -182,7 +183,35 @@ function serverFormat(serverName, serverHost, serevrPort) {
   return `${serverName}@${serverHost}:${serevrPort}`;
 }
 
-exports.main = function () {
+exports.main = async function () {
+  /*
+  ** Check fluree port from nodes file for avoiding double port for multi fluree on same network 
+  ** Update flureePort 
+  */
+  const pubIp = await PUBLIC_HOSTIP;
+  var currentNode = store.getState().nodes.nodes.nodes.find(item =>
+    item.nodeHashKey === store.getState().keys.hashKey
+  );
+  var nodesLocalNet = store.getState().nodes.nodes.nodes.filter(item => 
+    item.remoteSocket.remoteIP === pubIp
+  );
+
+  if (currentNode.remoteSocket.flureePort) {
+    console.log('Old node fluree port: ', currentNode.remoteSocket.flureePort);
+  } else if (nodesLocalNet.length === 1) {
+    currentNode.remoteSocket.flureePort = FLUREECONNECTING_PORT;
+    hyperspace.UpdateCurrentNode(currentNode);
+  } else {
+    var max = FLUREECONNECTING_PORT;
+    nodesLocalNet.forEach(element => {
+      if (max < element.remoteSocket?.flureePort) {
+        max = element.remoteSocket.flureePort;
+      }
+    });
+    currentNode.remoteSocket.flureePort = max + 1;
+    hyperspace.UpdateCurrentNode(currentNode);
+  }
+  
   const timer = setInterval(async () => {
     switch (NODE_TYPE) {
       case NODE_TYPES.MAIN_MASTER:
@@ -190,9 +219,9 @@ exports.main = function () {
           const servers = serverFormat(
             store.getState().keys.hashKey,
             await PUBLIC_HOSTIP,
-            await FLUREECONNECTING_PORT,
+            FLUREECONNECTING_PORT,
           );
-          startUpFluree_docker(servers);
+          startUpFluree_man(servers);
           clearInterval(timer);
         }
         break;
@@ -217,12 +246,12 @@ exports.main = function () {
               }
               servers += serverFormat(
                 element.nodeHashKey,
-                element.remoteSocket.remote,
-                element.remoteSocket.port_db
+                element.remoteSocket.remoteIP,
+                element.remoteSocket.flureePort
               );
             });
             clearInterval(timer);
-            startUpFluree_docker(servers);
+            startUpFluree_man(servers);
           }
         }, 7000);
         break;

@@ -135,26 +135,29 @@ async function startUpOpenwhisk_kubernetes() {
 
 function startUpOpenwhisk_docker() {
   /*
-  ** First of all will delete Openwhisk container
+  ** Delete Openwhisk container if exist
   */
-  exec(`docker rm -f openwhisk`, async (error, stdout, stderr) => {
+  exec(`docker rm -f openwhisk`, (error, stdout, stderr) => {
     if (error) {
-      console.log(error.message)
+      console.log(error.message);
     } else {
       console.log('Deleted openwhisk');
     }
 
     // --net dis-network \
-    await exec(`docker run \
-      -p 3233:3233 \
+    exec(`docker run \
+      -p ${LOCAL_HOSTIP}:3233:3233 \
       -v /var/run/docker.sock:/var/run/docker.sock \
       --name openwhisk openwhisk/standalone:nightly`, (error, stdout, stderr) => {
       if (error) {
-        console.log(error); 
+        console.log(error);
+      } else {
+        console.log('Configure openwhisk...');
       }
+
       console.log(`\n${stdout}`);
     });
-
+    
     const timer = setInterval(() => {
       ow.actions.list().then(list => {
         if (isEmpty(list)) {
@@ -175,7 +178,6 @@ function startUpOpenwhisk_docker() {
     }, 5000);
   });
 }
-
 
 exports.main = function () {
   startUpOpenwhisk_docker();

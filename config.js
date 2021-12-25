@@ -1,14 +1,14 @@
-const { SetPort } = require('./src/helper/net-controller');
+const { GetPort } = require('./src/helper/net-controller');
 
 const BASEDIR = __dirname;
 
-const LOCAL_HOSTIP = process.env.HOST || require('ip').address(); //'192.168.1.70';
+const LOCAL_HOSTIP = require('ip').address(); //'192.168.1.70';
 const PUBLIC_HOSTIP = require('public-ip').v4();
 
 const HOSTING_PORT = 50007;
 const FLUREEHOSTING_PORT = 31090;
-const FLUREECONNECTING_PORT = SetPort(31790, 31799);
-const DISCOVERING_PORT = SetPort(39790, 39799);
+const FLUREECONNECTING_PORT = 31700;
+const DISCOVERING_PORT = GetPort();
 
 const CURRENT_NODEDATA_CRYPTO = {
   name: 'PassApp',
