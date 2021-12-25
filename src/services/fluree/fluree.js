@@ -241,14 +241,16 @@ exports.main = async function () {
 
             var servers = "";
             await store.getState().nodes.nodes.nodes.forEach((element) => {
-              if (servers !== "") {
-                servers += ",";
+              if (element.remoteSocket?.flureePort) {
+                if (servers !== "") {
+                  servers += ",";
+                }
+                servers += serverFormat(
+                  element.nodeHashKey,
+                  element.remoteSocket.remoteIP,
+                  element.remoteSocket.flureePort
+                );
               }
-              servers += serverFormat(
-                element.nodeHashKey,
-                element.remoteSocket.remoteIP,
-                element.remoteSocket.flureePort
-              );
             });
             clearInterval(timer);
             startUpFluree_man(servers);
