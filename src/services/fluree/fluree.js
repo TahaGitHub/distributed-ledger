@@ -202,14 +202,14 @@ exports.main = async function () {
     currentNode.remoteSocket.flureePort = FLUREECONNECTING_PORT;
     hyperspace.UpdateCurrentNode(currentNode);
   } else {
-    var max = FLUREECONNECTING_PORT;
+    var max = 0;
     nodesLocalNet.forEach(element => {
       if (max < element.remoteSocket?.flureePort) {
         max = element.remoteSocket.flureePort;
       }
     });
     
-    currentNode.remoteSocket.flureePort = max === FLUREECONNECTING_PORT ? FLUREECONNECTING_PORT : max + 1;
+    currentNode.remoteSocket.flureePort = max === 0 ? FLUREECONNECTING_PORT : max + 1;
     hyperspace.UpdateCurrentNode(currentNode);
   }
   
