@@ -10,4 +10,4 @@ _files
 _test
 _shared-files
 _data
-fluree*
+fluree-docker-*.yaml

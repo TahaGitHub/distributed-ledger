@@ -208,7 +208,8 @@ exports.main = async function () {
         max = element.remoteSocket.flureePort;
       }
     });
-    currentNode.remoteSocket.flureePort = max + 1;
+    
+    currentNode.remoteSocket.flureePort = max === FLUREECONNECTING_PORT ? FLUREECONNECTING_PORT : max + 1;
     hyperspace.UpdateCurrentNode(currentNode);
   }
   
