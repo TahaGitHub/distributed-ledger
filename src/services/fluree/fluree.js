@@ -154,7 +154,10 @@ function startUpFluree_man(servers) {
       var _exec1 = exec(
         `$HOME/node/fluree/fluree_start.sh -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
           store.getState().keys.hashKey
-        } -Dfdb-api-port=${FLUREEHOSTING_PORT}`
+        } -Dfdb-api-port=${FLUREEHOSTING_PORT} \
+        -Dfdb-group-config-path=$HOME/node/fluree/ \
+        -Dfdb-group-log-directory=$HOME/node/fluree/data/group/ \
+        -Dfdb-storage-file-root=$HOME/node/fluree/data`
       );
 
       _exec1.stdout.on('data', function(data) {
@@ -166,7 +169,10 @@ function startUpFluree_man(servers) {
       var _exec2 = exec(
         `$HOME/node/fluree/fluree_start.sh -Dfdb-join?=true -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
           store.getState().keys.hashKey
-        } -Dfdb-api-port=${FLUREEHOSTING_PORT}`
+        } -Dfdb-api-port=${FLUREEHOSTING_PORT} \
+        -Dfdb-group-config-path=$HOME/node/fluree/ \
+        -Dfdb-group-log-directory=$HOME/node/fluree/data/group/ \
+        -Dfdb-storage-file-root=$HOME/node/fluree/data`
       );
 
       _exec2.stdout.on('data', function(data) {
