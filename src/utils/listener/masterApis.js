@@ -212,7 +212,7 @@ exports.addLedger =  function () {
                 }
               }
             );
-          }, 1000);
+          }, 2000);
         });
       } else {
         logWithColor('green', `\nLedger ${FLUREE_DB.ALL} found\n`);
