@@ -2,7 +2,7 @@ const store = require("../store/store");
 const nodesAction = require("../store/actions/nodesAction");
 
 const FilesController = require("../helper/files-controller");
-const { FILES } = require("../../config");
+const { FILES, NODE_TYPE } = require("../../config");
 
 class Node {
   constructor({
@@ -19,6 +19,7 @@ class Node {
     this.nodeHashKey = nodeHashKey;
     this.coreKey = coreKey;
     this.publicKey = publicKey;
+    this.type = NODE_TYPE;
     this.remoteSocket = remoteSocket;
   }
 

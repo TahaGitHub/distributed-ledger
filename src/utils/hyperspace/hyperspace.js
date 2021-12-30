@@ -7,11 +7,13 @@ const Hyperswarm = require("hyperswarm");
 const Hyperbee = require("hyperbee");
 const { Client, Server } = require("hyperspace");
 
-const { CHANNEL, DISCOVERING_PORT, PUBLIC_HOSTIP, LOCAL_HOSTIP, DIRECTORIES } = require("../../../config");
+const { CHANNEL, DISCOVERING_PORT, PUBLIC_HOSTIP, LOCAL_HOSTIP, DIRECTORIES, NODE_TYPE, NODE_TYPES } = require("../../../config");
 const Node = require("../../units/node");
 
 var _ = require("lodash");
 const { logWithColor } = require("../../helper/logs");
+
+const fluree = require('../../services/fluree/fluree');
 
 /*
 ** Set controller times like:
@@ -198,6 +200,10 @@ exports.hyperspace = async function () {
 
       // Start discovering peers
       hyperSwarm();
+      
+      if (NODE_TYPE === NODE_TYPES.MAIN_MASTER) {
+        fluree.main();
+      }
     });
 
     // await new Promise((r) => setTimeout(r, 3e3)); // wait just a few seconds

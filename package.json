@@ -18,6 +18,7 @@
     "eslint-plugin-promise": "^5.2.0"
   },
   "dependencies": {
+    "@fluree/flureenjs": "^1.0.0-rc27",
     "body-parser": "^1.19.1",
     "crypto": "^1.0.1",
     "express": "^4.17.1",
@@ -26,11 +27,15 @@
     "hyperspace": "^3.19.0",
     "hyperswarm": "^2.15.3",
     "ip": "^1.1.5",
+    "kill-port": "^1.6.1",
     "lodash": "^4.17.21",
     "openpgp": "^5.0.1",
     "openwhisk": "^3.21.5",
     "public-ip": "^4.0.4",
     "redux": "^4.1.2",
-    "request": "^2.88.2"
+    "request": "^2.88.2",
+    "tcp-port-used": "^1.0.2",
+    "ws": "^8.4.0",
+    "xmlhttprequest": "^1.8.0"
   }
 }

@@ -2,7 +2,7 @@ const { GetPort } = require('./src/helper/net-controller');
 
 const BASEDIR = __dirname;
 
-const LOCAL_HOSTIP = require('ip').address(); //'192.168.1.70';
+const LOCAL_HOSTIP = require('ip').address();
 const PUBLIC_HOSTIP = require('public-ip').v4();
 
 const HOSTING_PORT = 50007;

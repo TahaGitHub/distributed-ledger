@@ -29,8 +29,10 @@ exports.logWithColor = async function (color, string) {
   }
 
   console.log(
-    color, // set text color
-    string,
-    `\x1b[37m` // re-set text color to white
+    /* 
+    ** Set text color
+    ** re-set text color to white
+    */ 
+    color, string, `\x1b[37m` 
   );
 }

@@ -5,6 +5,7 @@ const { exec } = require("child_process");
 const { isEmpty } = require('lodash');
 
 const { BASEDIR, DIRECTORIES, FLUREEHOSTING_PORT, LOCAL_HOSTIP } = require('../../../config');
+const { logWithColor } = require('../../helper/logs');
 
 const options = {apihost: `http://${LOCAL_HOSTIP}:3233`, api_key: '23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP'};
 const ow = openwhisk(options);
@@ -34,14 +35,14 @@ function OpenwhiskCreateAction (actionName, actionZipFile) {
       ow.actions.delete(actionName);
     }
   }).catch(() => {
-    console.log(`Failed to retrieve ${actionName} action`);
+    console.log(`${actionName} action not found`);
   });
 
   /*
   ** Create action
   */
   ow.actions.create({ actionName, action: actionZipFile}).then(() => {
-    console.log(`Created ${actionName} action!`);
+    logWithColor('green', `\nCreated ${actionName} action!\n`);
   });
 }
 
@@ -77,7 +78,7 @@ function OpenwhiskDeleteAllActions () {
     
     list.forEach(item => {
       ow.actions.delete(item.name);
-      console.log(`Deleted ${item.name}`)
+      logWithColor('red', `Deleted ${item.name}`)
     })
   });
 }
@@ -90,14 +91,14 @@ async function startUpOpenwhisk_kubernetes() {
     if (error) {
       console.log(error.message)
     } else {
-      console.log('Deleted openwhisk-pod pod');
+      logWithColor('red','Deleted openwhisk-pod pod\n');
     }
   
     exec(`sudo docker rm -f openwhisk`, (error, stdout, stderr) => {
       if (error) {
         console.log(error.message);
       } else {
-        console.log('Deleted openwhisk docker container');
+        logWithColor('red','Deleted openwhisk docker container\n');
       }
       
       /*
@@ -141,7 +142,7 @@ function startUpOpenwhisk_docker() {
     if (error) {
       console.log(error.message);
     } else {
-      console.log('Deleted openwhisk');
+      logWithColor('red', '\nDeleted openwhisk\n');
     }
 
     // --net dis-network \
@@ -161,11 +162,11 @@ function startUpOpenwhisk_docker() {
     const timer = setInterval(() => {
       ow.actions.list().then(list => {
         if (isEmpty(list)) {
-          console.log('\nNo action found');
+          logWithColor('green', '\nNo action found');
           clearInterval(timer);
           OpenwhiskCreateAllActions();
         } else {
-          console.log('\nAction found list ', list);
+          logWithColor('green', '\nAction found list ', list);
           OpenwhiskDeleteAllActions().then(() => {
             clearInterval(timer);
             OpenwhiskCreateAllActions();

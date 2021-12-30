@@ -3,8 +3,15 @@ const store = require("../../store/store");
 const { exec } = require("child_process");
 const { isEmpty } = require("lodash");
 
-const { NODE_TYPES, PUBLIC_HOSTIP, FLUREECONNECTING_PORT, FLUREEHOSTING_PORT, NODE_TYPE } = require("../../../config");
+const tcpPortUsed = require('tcp-port-used');
+const kill = require('kill-port')
+
+const { NODE_TYPES, PUBLIC_HOSTIP, FLUREECONNECTING_PORT, FLUREEHOSTING_PORT, NODE_TYPE, LOCAL_HOSTIP, FLUREE_DB } = require("../../../config");
 const hyperspace = require("../../utils/hyperspace/hyperspace");
+const openwhisk = require('../../services/openwhisk/openwhisk');
+
+const { logWithColor } = require("../../helper/logs");
+const { addLedger } = require("../../utils/listener/masterApis");
 
 function startUpFluree_kubernetes(servers) {
   const port = FLUREECONNECTING_PORT;
@@ -16,7 +23,7 @@ function startUpFluree_kubernetes(servers) {
     if (error) {
       console.log(error.message);
     } else {
-      console.log('Deleted fluree deployment and service');
+      logWithColor('red','Deleted fluree deployment and service');
     }
     
     exec(`
@@ -86,7 +93,7 @@ function startUpFluree_docker_compose(servers) {
     if (error) {
       console.log(error.message);
     } else {
-      console.log('Deleted fluree container');
+      logWithColor('red','Deleted fluree container');
     }
 
     exec(`
@@ -127,7 +134,7 @@ function startUpFluree_docker(servers) {
     if (error) {
       console.log(error.message);
     } else {
-      console.log('Deleted fluree container');
+      logWithColor('red','Deleted fluree container');
     }
 
     // --net dis-network \
@@ -148,7 +155,22 @@ function startUpFluree_docker(servers) {
   });
 }
 
-function startUpFluree_man(servers) {
+async function startUpFluree_man(servers) {
+  await tcpPortUsed.check(FLUREECONNECTING_PORT, LOCAL_HOSTIP)
+    .then(async function(inUse) {
+        logWithColor('magenta', `\nPort ${FLUREECONNECTING_PORT} usage: ${inUse}`);
+        if (inUse) {
+          await kill(FLUREECONNECTING_PORT, 'tcp')
+            .then(() => logWithColor('red', `\nStoping ${FLUREECONNECTING_PORT} port`))
+            .catch(console.log);
+          await kill(FLUREEHOSTING_PORT, 'tcp')
+            .then(() => logWithColor('red', `\nStoping ${FLUREEHOSTING_PORT} port\n`))
+            .catch(console.log);
+        }
+    }, function(err) {
+        console.error('Error on check:', err.message);
+    });
+
   switch (NODE_TYPE) {
     case NODE_TYPES.MAIN_MASTER:
       var _exec1 = exec(
@@ -182,6 +204,21 @@ function startUpFluree_man(servers) {
     default:
       break;
   }
+
+  tcpPortUsed.waitUntilUsed(FLUREEHOSTING_PORT, 3000, 30000)
+    .then(function() {
+        logWithColor('green', `\nFluree is running...\nhttp://${LOCAL_HOSTIP}:${FLUREEHOSTING_PORT}\n`);
+        openwhisk.main();
+
+        if (NODE_TYPE === NODE_TYPES.MAIN_MASTER) {
+          logWithColor('magenta', `\nChecking ${FLUREE_DB.ALL} if exist after 5 sec. Wait...`);
+          setTimeout(() => {
+            addLedger();
+          }, 5000);
+        }
+    }, function(err) {
+        console.log('Error:', err.message);
+    });
 }
 
 // this.startUpFluree(null, null, 8090);
@@ -239,6 +276,8 @@ exports.main = async function () {
         }
 
         var previousNodesCount = store.getState().nodes.nodes.count;
+        var pub_port = await PUBLIC_HOSTIP;
+
         setTimeout(async () => {
           if (
             previousNodesCount > 1 &&
@@ -254,7 +293,7 @@ exports.main = async function () {
                 }
                 servers += serverFormat(
                   element.nodeHashKey,
-                  element.remoteSocket.remoteIP,
+                  element.remoteSocket.remoteIP === pub_port ? element.remoteSocket.localIP : element.remoteSocket.remoteIP,
                   element.remoteSocket.flureePort
                 );
               }

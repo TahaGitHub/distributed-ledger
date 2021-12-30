@@ -1,0 +1,57 @@
+[
+ {
+  "_id": "_collection",
+  "name": "users_tags",
+  "doc": "A collection to hold all the users with tags in our ledger",
+  "version": "1"
+ },
+ {
+  "_id": "_collection",
+  "name": "users_passes",
+  "doc": "A collection to hold all the users with passes in our ledger",
+  "version": "1"
+ },
+ {
+  "_id": "_collection",
+  "name": "users_balance",
+  "doc": "A collection to hold all the users with balance in our ledger",
+  "version": "1"
+ },
+
+ {
+  "_id": "_predicate",
+  "name": "users_tags/tagId",
+  "type": "string",
+  "unique": true
+ },
+ {
+  "_id": "_predicate",
+  "name": "users_tags/user_id",
+  "type": "string"
+ },
+ 
+ {
+  "_id": "_predicate",
+  "name": "users_passes/user_id",
+  "type": "string",
+  "unique": true
+ },
+ {
+  "_id": "_predicate",
+  "name": "users_passes/passes",
+  "type": "json",
+  "multi": true
+ },
+ 
+ {
+  "_id": "_predicate",
+  "name": "users_balance/user_id",
+  "type": "string",
+  "unique": true
+ },
+ {
+  "_id": "_predicate",
+  "name": "users_balance/balance",
+  "type": "float"
+ }
+]
