@@ -276,8 +276,6 @@ exports.main = async function () {
         }
 
         var previousNodesCount = store.getState().nodes.nodes.count;
-        var pub_port = await PUBLIC_HOSTIP;
-
         setTimeout(async () => {
           if (
             previousNodesCount > 1 &&
@@ -293,7 +291,7 @@ exports.main = async function () {
                 }
                 servers += serverFormat(
                   element.nodeHashKey,
-                  element.remoteSocket.remoteIP === pub_port ? element.remoteSocket.localIP : element.remoteSocket.remoteIP,
+                  element.remoteSocket.remoteIP,
                   element.remoteSocket.flureePort
                 );
               }
