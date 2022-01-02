@@ -413,14 +413,10 @@ exports.hyperspace = async function () {
   };
 
   const SendMessageToPeer = (peerId, data) => {
-    try {
-      console.log(
-        `Sending message to peers No: ${peers[peerId].seq}, PeerHost: ${peerId}`
-      );
-      peers[peerId].socket.write(JSON.stringify(data));
-    } catch (error) {
-      console.log(error)
-    }
+    console.log(
+      `Sending message to peers No: ${peers[peerId].seq}, PeerHost: ${peerId}`
+    );
+    peers[peerId].socket.write(JSON.stringify(data));
   };
 
   // const SendMessageToAllPeers = (data) => {

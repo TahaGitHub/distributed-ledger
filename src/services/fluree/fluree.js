@@ -175,14 +175,14 @@ async function startUpFluree_man(servers, fluree_port, main_node) {
     }, function(err) {
         console.error('Error on check:', err.message);
     });
-    
+  
   // -Dfdb-group-private-key=privert has key
   var _exec = exec(
     `$HOME/node/fluree/fluree_start.sh ${!main_node ? '-Dfdb-join?=true' : ''} \
     -Dfdb-group-servers=${servers} \
     -Dfdb-group-this-server=${store.getState().keys.hashKey} \
     -Dfdb-api-port=${FLUREEHOSTING_PORT} \
-    -Dfdb-group-catch-up-rounds=25
+    -Dfdb-group-catch-up-rounds=25 \
     -Dfdb-group-config-path=$HOME/node/fluree/ \
     -Dfdb-group-log-directory=$HOME/node/fluree/data/group/ \
     -Dfdb-storage-file-root=$HOME/node/fluree/data`
@@ -231,7 +231,10 @@ exports.main = async function () {
     } else {
       const timer = setInterval(async () => {
         // Get and Check if there other node running flureee
-        nodesRunningFluree = store.getState().nodes.nodes.nodes.filter(item => item.remoteSocket.flureePort !== null);
+        nodesRunningFluree = store.getState().nodes.nodes.nodes.filter(item =>
+          item.remoteSocket.flureePort !== null ||
+          item.nodeHashKey === store.getState().keys.hashKey
+        );
 
         if (nodesRunningFluree.length >= 1) {
           // Get other node running fluree
