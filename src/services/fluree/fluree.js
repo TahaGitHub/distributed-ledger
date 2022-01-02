@@ -236,7 +236,7 @@ exports.main = async function () {
           item.nodeHashKey === store.getState().keys.hashKey
         );
 
-        if (nodesRunningFluree.length >= 1) {
+        if (nodesRunningFluree.length > 1) {
           // Get other node running fluree
           setTimeout(async () => {
             var _nodesRunningFluree = store.getState().nodes.nodes.nodes.filter(item => item.remoteSocket.flureePort !== null);
