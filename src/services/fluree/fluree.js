@@ -239,13 +239,19 @@ exports.main = async function () {
         if (nodesRunningFluree.length > 1) {
           // Get other node running fluree
           setTimeout(async () => {
-            var _nodesRunningFluree = store.getState().nodes.nodes.nodes.filter(item => item.remoteSocket.flureePort !== null);
+            var _nodesRunningFluree = store.getState().nodes.nodes.nodes.filter(item => 
+              item.remoteSocket.flureePort !== null ||
+              item.nodeHashKey === store.getState().keys.hashKey
+            );
             if (nodesRunningFluree.length === _nodesRunningFluree.length) {
               // Starting setup the fluree
               var AllLocalNodes = store.getState().nodes.nodes.nodes.filter(item => item.remoteSocket.remoteIP === pubIp);
 
               if (currentNode.remoteSocket.flureePort) {
                 console.log('Old node fluree port: ', currentNode.remoteSocket.flureePort);
+              } else if (AllLocalNodes.length === 1) {
+                currentNode.remoteSocket.flureePort = FLUREECONNECTING_PORT;
+                hyperspace.UpdateCurrentNode(currentNode);
               } else {
                 var max = 0;
                 AllLocalNodes.forEach(element => {
@@ -256,6 +262,7 @@ exports.main = async function () {
                 
                 currentNode.remoteSocket.flureePort = max === 0 ? FLUREECONNECTING_PORT : max + 1;
                 hyperspace.UpdateCurrentNode(currentNode);
+                await new Promise((r) => setTimeout(r, 1e3)); // wait just a few seconds
               }
 
               var servers = "";
