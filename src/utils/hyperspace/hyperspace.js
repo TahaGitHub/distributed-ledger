@@ -200,10 +200,7 @@ exports.hyperspace = async function () {
 
       // Start discovering peers
       hyperSwarm();
-      
-      if (NODE_TYPE === NODE_TYPES.MAIN_MASTER) {
-        fluree.main();
-      }
+      fluree.main();
     });
 
     // await new Promise((r) => setTimeout(r, 3e3)); // wait just a few seconds

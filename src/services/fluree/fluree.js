@@ -155,7 +155,12 @@ function startUpFluree_docker(servers) {
   });
 }
 
-async function startUpFluree_man(servers, fluree_port) {
+/*
+** servers
+** fluree_port to stop if running
+** main_node discribe if the node is first one to create schema
+*/
+async function startUpFluree_man(servers, fluree_port, main_node) {
   await tcpPortUsed.check(fluree_port, LOCAL_HOSTIP)
     .then(async function(inUse) {
       logWithColor('magenta', `\nPort ${fluree_port} usage: ${inUse}`);
@@ -170,47 +175,29 @@ async function startUpFluree_man(servers, fluree_port) {
     }, function(err) {
         console.error('Error on check:', err.message);
     });
+    
+  // -Dfdb-group-private-key=privert has key
+  var _exec = exec(
+    `$HOME/node/fluree/fluree_start.sh ${!main_node ? '-Dfdb-join?=true' : ''} \
+    -Dfdb-group-servers=${servers} \
+    -Dfdb-group-this-server=${store.getState().keys.hashKey} \
+    -Dfdb-api-port=${FLUREEHOSTING_PORT} \
+    -Dfdb-group-catch-up-rounds=25
+    -Dfdb-group-config-path=$HOME/node/fluree/ \
+    -Dfdb-group-log-directory=$HOME/node/fluree/data/group/ \
+    -Dfdb-storage-file-root=$HOME/node/fluree/data`
+  );
 
-  switch (NODE_TYPE) {
-    case NODE_TYPES.MAIN_MASTER:
-      var _exec1 = exec(
-        `$HOME/node/fluree/fluree_start.sh -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
-          store.getState().keys.hashKey
-        } -Dfdb-api-port=${FLUREEHOSTING_PORT} \
-        -Dfdb-group-config-path=$HOME/node/fluree/ \
-        -Dfdb-group-log-directory=$HOME/node/fluree/data/group/ \
-        -Dfdb-storage-file-root=$HOME/node/fluree/data`
-      );
-
-      _exec1.stdout.on('data', function(data) {
-        console.log(data); 
-      })
-      break;
-    case NODE_TYPES.MASTER:
-    case NODE_TYPES.WORKER:
-      var _exec2 = exec(
-        `$HOME/node/fluree/fluree_start.sh -Dfdb-join?=true -Dfdb-group-servers=${servers} -Dfdb-group-this-server=${
-          store.getState().keys.hashKey
-        } -Dfdb-api-port=${FLUREEHOSTING_PORT} \
-        -Dfdb-group-config-path=$HOME/node/fluree/ \
-        -Dfdb-group-log-directory=$HOME/node/fluree/data/group/ \
-        -Dfdb-storage-file-root=$HOME/node/fluree/data`
-      );
-
-      _exec2.stdout.on('data', function(data) {
-        console.log(data); 
-      })
-      break;
-    default:
-      break;
-  }
+  _exec.stdout.on('data', function(data) {
+    console.log(data); 
+  })
 
   tcpPortUsed.waitUntilUsed(FLUREEHOSTING_PORT, 3000, 30000)
     .then(function() {
         logWithColor('green', `\nFluree is running...\nhttp://${LOCAL_HOSTIP}:${FLUREEHOSTING_PORT}\n`);
         openwhisk.main();
 
-        if (NODE_TYPE === NODE_TYPES.MAIN_MASTER) {
+        if (main_node) {
           logWithColor('magenta', `\nChecking ${FLUREE_DB.ALL} if exist after 5 sec. Wait...`);
           setTimeout(() => {
             addLedger();
@@ -228,73 +215,48 @@ function serverFormat(serverName, serverHost, serevrPort) {
 
 exports.main = async function () {
   /*
-  ** Check fluree port from nodes file for avoiding double port for multi fluree on same network 
-  ** Update flureePort 
+  ** Setup fluree 
   */
   const pubIp = await PUBLIC_HOSTIP;
-  var currentNode = store.getState().nodes.nodes.nodes.find(item =>
-    item.nodeHashKey === store.getState().keys.hashKey
-  );
-  var nodesLocalNet = store.getState().nodes.nodes.nodes.filter(item => 
-    item.remoteSocket.remoteIP === pubIp
-  );
+  setTimeout(async () => {
+    var currentNode = store.getState().nodes.nodes.nodes.find(item => item.nodeHashKey === store.getState().keys.hashKey);
+    var nodesRunningFluree = store.getState().nodes.nodes.nodes.filter(item => item.remoteSocket.flureePort !== null);
 
-  if (currentNode.remoteSocket.flureePort) {
-    console.log('Old node fluree port: ', currentNode.remoteSocket.flureePort);
-  } else if (nodesLocalNet.length === 1) {
-    currentNode.remoteSocket.flureePort = FLUREECONNECTING_PORT;
-    hyperspace.UpdateCurrentNode(currentNode);
-  } else {
-    var max = 0;
-    nodesLocalNet.forEach(element => {
-      if (max < element.remoteSocket?.flureePort) {
-        max = element.remoteSocket.flureePort;
-      }
-    });
-    
-    currentNode.remoteSocket.flureePort = max === 0 ? FLUREECONNECTING_PORT : max + 1;
-    hyperspace.UpdateCurrentNode(currentNode);
-  }
-  
-  const timer = setInterval(async () => {
-    switch (NODE_TYPE) {
-      case NODE_TYPES.MAIN_MASTER:
-        if (!isEmpty(store.getState().keys.hashKey)) {
-          const servers = serverFormat(
-            store.getState().keys.hashKey,
-            await PUBLIC_HOSTIP,
-            FLUREECONNECTING_PORT,
-          );
-          startUpFluree_man(servers, currentNode.remoteSocket?.flureePort);
-          clearInterval(timer);
-        }
-        break;
-      case NODE_TYPES.MASTER:
-      case NODE_TYPES.WORKER:
-        if (previousNodesCount === 1) {
-          console.log('Not finding other node, please wait');
-        }
+    if (NODE_TYPE === NODE_TYPES.MAIN_MASTER && !currentNode.remoteSocket.flureePort) {
+      currentNode.remoteSocket.flureePort = FLUREECONNECTING_PORT;
+      hyperspace.UpdateCurrentNode(currentNode);
 
-        var previousNodesCount = store.getState().nodes.nodes.count;
-        setTimeout(async () => {
-          if (
-            previousNodesCount > 1 &&
-            previousNodesCount === store.getState().nodes.nodes.count
-          ) {
-            console.log('Found other node, connecting...');
+      const servers = serverFormat(store.getState().keys.hashKey, pubIp, FLUREECONNECTING_PORT);
+      startUpFluree_man(servers, currentNode.remoteSocket.flureePort, true);
+    } else {
+      const timer = setInterval(async () => {
+        // Get and Check if there other node running flureee
+        nodesRunningFluree = store.getState().nodes.nodes.nodes.filter(item => item.remoteSocket.flureePort !== null);
 
-            var servers = "";
-            await store.getState().nodes.nodes.nodes.forEach((element) => {
-              if (
-                element.remoteSocket?.flureePort &&
-                (
-                  element.type === NODE_TYPES.MAIN_MASTER  ||
-                  (
-                    element.remoteSocket.remoteIP === pubIp && 
-                    element.remoteSocket.localIP === LOCAL_HOSTIP
-                  )
-                )
-              ) {
+        if (nodesRunningFluree.length >= 1) {
+          // Get other node running fluree
+          setTimeout(async () => {
+            var _nodesRunningFluree = store.getState().nodes.nodes.nodes.filter(item => item.remoteSocket.flureePort !== null);
+            if (nodesRunningFluree.length === _nodesRunningFluree.length) {
+              // Starting setup the fluree
+              var AllLocalNodes = store.getState().nodes.nodes.nodes.filter(item => item.remoteSocket.remoteIP === pubIp);
+
+              if (currentNode.remoteSocket.flureePort) {
+                console.log('Old node fluree port: ', currentNode.remoteSocket.flureePort);
+              } else {
+                var max = 0;
+                AllLocalNodes.forEach(element => {
+                  if (max < element.remoteSocket?.flureePort) {
+                    max = element.remoteSocket.flureePort;
+                  }
+                });
+                
+                currentNode.remoteSocket.flureePort = max === 0 ? FLUREECONNECTING_PORT : max + 1;
+                hyperspace.UpdateCurrentNode(currentNode);
+              }
+
+              var servers = "";
+              await _nodesRunningFluree.forEach((element) => {
                 if (servers !== "") {
                   servers += ",";
                 }
@@ -303,18 +265,96 @@ exports.main = async function () {
                   element.remoteSocket.remoteIP,
                   element.remoteSocket.flureePort
                 );
-              }
-            });
-            clearInterval(timer);
-            startUpFluree_man(servers, currentNode.remoteSocket?.flureePort);
-          }
-        }, 7000);
-        break;
-      default:
-        console.log(">>>>>>>>>>>>> Wrong node tpye <<<<<<<<<<<<<");
-        break;
+              });
+              clearInterval(timer);
+              startUpFluree_man(servers, currentNode.remoteSocket?.flureePort);
+            }
+          }, 5000);
+        }
+      }, 8000);
     }
   }, 10000);
+
+  // var nodesLocalNet = store.getState().nodes.nodes.nodes.filter(item => 
+  //   item.remoteSocket.remoteIP === pubIp
+  // );
+
+  // if (currentNode.remoteSocket.flureePort) {
+  //   console.log('Old node fluree port: ', currentNode.remoteSocket.flureePort);
+  // } else if (nodesLocalNet.length === 1) {
+  //   currentNode.remoteSocket.flureePort = FLUREECONNECTING_PORT;
+  //   hyperspace.UpdateCurrentNode(currentNode);
+  // } else {
+  //   var max = 0;
+  //   nodesLocalNet.forEach(element => {
+  //     if (max < element.remoteSocket?.flureePort) {
+  //       max = element.remoteSocket.flureePort;
+  //     }
+  //   });
+    
+  //   currentNode.remoteSocket.flureePort = max === 0 ? FLUREECONNECTING_PORT : max + 1;
+  //   hyperspace.UpdateCurrentNode(currentNode);
+  // }
+  
+  // const timer = setInterval(async () => {
+  //   switch (NODE_TYPE) {
+  //     case NODE_TYPES.MAIN_MASTER:
+  //       if (!isEmpty(store.getState().keys.hashKey)) {
+  //         const servers = serverFormat(
+  //           store.getState().keys.hashKey,
+  //           await PUBLIC_HOSTIP,
+  //           FLUREECONNECTING_PORT,
+  //         );
+  //         startUpFluree_man(servers, currentNode.remoteSocket?.flureePort);
+  //         clearInterval(timer);
+  //       }
+  //       break;
+  //     case NODE_TYPES.MASTER:
+  //     case NODE_TYPES.WORKER:
+  //       if (previousNodesCount === 1) {
+  //         console.log('Not finding other node, please wait');
+  //       }
+
+  //       var previousNodesCount = store.getState().nodes.nodes.count;
+  //       setTimeout(async () => {
+  //         if (
+  //           previousNodesCount > 1 &&
+  //           previousNodesCount === store.getState().nodes.nodes.count
+  //         ) {
+  //           console.log('Found other node, connecting...');
+
+  //           var servers = "";
+  //           await store.getState().nodes.nodes.nodes.forEach((element) => {
+  //             if (
+  //               element.remoteSocket?.flureePort &&
+  //               (
+  //                 element.type === NODE_TYPES.MAIN_MASTER  ||
+  //                 (
+  //                   element.remoteSocket.remoteIP === pubIp && 
+  //                   element.remoteSocket.localIP === LOCAL_HOSTIP
+  //                 )
+  //               )
+  //             ) {
+  //               if (servers !== "") {
+  //                 servers += ",";
+  //               }
+  //               servers += serverFormat(
+  //                 element.nodeHashKey,
+  //                 element.remoteSocket.remoteIP,
+  //                 element.remoteSocket.flureePort
+  //               );
+  //             }
+  //           });
+  //           clearInterval(timer);
+  //           startUpFluree_man(servers, currentNode.remoteSocket?.flureePort);
+  //         }
+  //       }, 7000);
+  //       break;
+  //     default:
+  //       console.log(">>>>>>>>>>>>> Wrong node tpye <<<<<<<<<<<<<");
+  //       break;
+  //   }
+  // }, 10000);
 }
 
 // exec(`gawk -i inplace '/^[ \t]*- *name: *fdb_group_servers[ \t]*$/{p=NR}

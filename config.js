@@ -54,8 +54,8 @@ const NODE_TYPES = {
 };
 
 var NODE_TYPE = process.env.TYPE ?
-    process.env.TYPE === NODE_TYPES.MAIN_MASTER || process.env.TYPE === NODE_TYPES.MASTER ? 
-      process.env.TYPE :
+    process.env.type === NODE_TYPES.MAIN_MASTER || process.env.type === NODE_TYPES.MASTER ? 
+      process.env.type :
       'worker' :
     process.env.npm_config_type === NODE_TYPES.MAIN_MASTER || process.env.npm_config_type === NODE_TYPES.MASTER ?
       process.env.npm_config_type :
