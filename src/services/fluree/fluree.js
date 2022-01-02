@@ -155,18 +155,18 @@ function startUpFluree_docker(servers) {
   });
 }
 
-async function startUpFluree_man(servers) {
-  await tcpPortUsed.check(FLUREECONNECTING_PORT, LOCAL_HOSTIP)
+async function startUpFluree_man(servers, fluree_port) {
+  await tcpPortUsed.check(fluree_port, LOCAL_HOSTIP)
     .then(async function(inUse) {
-        logWithColor('magenta', `\nPort ${FLUREECONNECTING_PORT} usage: ${inUse}`);
-        if (inUse) {
-          await kill(FLUREECONNECTING_PORT, 'tcp')
-            .then(() => logWithColor('red', `\nStoping ${FLUREECONNECTING_PORT} port`))
-            .catch(console.log);
-          await kill(FLUREEHOSTING_PORT, 'tcp')
-            .then(() => logWithColor('red', `\nStoping ${FLUREEHOSTING_PORT} port\n`))
-            .catch(console.log);
-        }
+      logWithColor('magenta', `\nPort ${fluree_port} usage: ${inUse}`);
+      if (inUse) {
+        await kill(fluree_port, 'tcp')
+          .then(() => logWithColor('red', `\nStoping ${fluree_port} port`))
+          .catch(console.log);
+        await kill(FLUREEHOSTING_PORT, 'tcp')
+          .then(() => logWithColor('red', `\nStoping ${FLUREEHOSTING_PORT} port\n`))
+          .catch(console.log);
+      }
     }, function(err) {
         console.error('Error on check:', err.message);
     });
@@ -265,7 +265,7 @@ exports.main = async function () {
             await PUBLIC_HOSTIP,
             FLUREECONNECTING_PORT,
           );
-          startUpFluree_man(servers);
+          startUpFluree_man(servers, currentNode.remoteSocket?.flureePort);
           clearInterval(timer);
         }
         break;
@@ -285,7 +285,16 @@ exports.main = async function () {
 
             var servers = "";
             await store.getState().nodes.nodes.nodes.forEach((element) => {
-              if (element.remoteSocket?.flureePort) {
+              if (
+                element.remoteSocket?.flureePort &&
+                (
+                  element.type === NODE_TYPES.MAIN_MASTER  ||
+                  (
+                    element.remoteSocket.remoteIP === pubIp && 
+                    element.remoteSocket.localIP === LOCAL_HOSTIP
+                  )
+                )
+              ) {
                 if (servers !== "") {
                   servers += ",";
                 }
@@ -297,7 +306,7 @@ exports.main = async function () {
               }
             });
             clearInterval(timer);
-            startUpFluree_man(servers);
+            startUpFluree_man(servers, currentNode.remoteSocket?.flureePort);
           }
         }, 7000);
         break;
